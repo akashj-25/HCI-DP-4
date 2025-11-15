@@ -1,6 +1,25 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, StatusBar, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, StatusBar, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+
+// Add this interface
+interface Goal {
+  id: number;
+  name: string;
+  description: string;
+  current: number;
+  target: number;
+  color: string;
+  icon: string;
+  targetDate?: string;
+}
+
+// Declare global types
+declare global {
+  var addNewGoal: ((goal: Goal) => void) | undefined;
+  var updateGoal: ((goal: Goal) => void) | undefined;
+}
 
 export default function GoalsScreen() {
   const [goals, setGoals] = useState([
@@ -24,8 +43,59 @@ export default function GoalsScreen() {
     },
   ]);
 
+  // Set up global function to add new goals
+  useEffect(() => {
+  global.addNewGoal = (newGoal: Goal) => {
+    setGoals(prevGoals => [...prevGoals, newGoal]);
+  };
+
+  global.updateGoal = (updatedGoal: Goal) => {
+    setGoals(prevGoals => 
+      prevGoals.map(goal => 
+        goal.id === updatedGoal.id ? updatedGoal : goal
+      )
+    );
+  };
+
+  return () => {
+    delete global.addNewGoal;
+    delete global.updateGoal;
+  };
+}, []);
+
   const calculateProgress = (current: number, target: number) => {
     return Math.min((current / target) * 100, 100);
+  };
+
+  const handleAddGoal = () => {
+    router.push('/(tabs)/add-goal-modal');
+  };
+
+  const handleEditGoal = (goal: Goal) => {
+  router.push({
+    pathname: '/(tabs)/edit-goal-modal',
+    params: { goalData: JSON.stringify(goal) }
+  });
+};
+
+  const handleDeleteGoal = (goalId: number, goalName: string) => {
+    Alert.alert(
+      'Delete Goal',
+      `Are you sure you want to delete "${goalName}"?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setGoals(prevGoals => prevGoals.filter(goal => goal.id !== goalId));
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -35,7 +105,7 @@ export default function GoalsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>My Goals</Text>
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddGoal}>
             <Text style={styles.addButtonText}>+</Text>
           </TouchableOpacity>
         </View>
@@ -43,7 +113,12 @@ export default function GoalsScreen() {
         {/* Goals List */}
         <View style={styles.goalsList}>
           {goals.map((goal) => (
-            <View key={goal.id} style={styles.goalCard}>
+            <TouchableOpacity 
+              key={goal.id} 
+              style={styles.goalCard}
+              onPress={() => handleEditGoal(goal)}
+              activeOpacity={0.7}
+            >
               {/* Goal Header */}
               <View style={styles.goalHeader}>
                 <View style={[styles.goalIcon, { backgroundColor: `${goal.color}20` }]}>
@@ -53,6 +128,13 @@ export default function GoalsScreen() {
                   <Text style={styles.goalName}>{goal.name}</Text>
                   <Text style={styles.goalDescription}>{goal.description}</Text>
                 </View>
+                {/* Delete Button */}
+                <TouchableOpacity 
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteGoal(goal.id, goal.name)}
+                >
+                  <Text style={styles.deleteButtonText}>🗑️</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Progress Section */}
@@ -75,7 +157,7 @@ export default function GoalsScreen() {
                   />
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
@@ -165,6 +247,18 @@ const styles = StyleSheet.create({
   goalDescription: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  deleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  deleteButtonText: {
+    fontSize: 18,
   },
   progressSection: {
     marginTop: 4,

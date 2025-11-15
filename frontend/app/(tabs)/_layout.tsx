@@ -50,6 +50,19 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>👤</Text>,
         }}
       />
+      {/* Hide the add goal modal from tabs */}
+      <Tabs.Screen
+        name="add-goal-modal"
+        options={{
+          href: null, // This hides it from the tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="edit-goal-modal"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
