@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Keyboa
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
-// Add Goal interface at the top
 interface Goal {
   id: number;
   name: string;
@@ -13,6 +12,9 @@ interface Goal {
   color: string;
   icon: string;
   targetDate?: string;
+  subGoals?: string[];
+  completedSubGoals?: number[];
+  isPrimary?: boolean;
 }
 
 declare global {
@@ -26,36 +28,33 @@ export default function AddGoalModal() {
   const [targetDate, setTargetDate] = useState('');
 
   const handleSubmit = () => {
-    // Validate inputs
     if (!title.trim() || !name.trim() || !amount.trim() || !targetDate.trim()) {
       alert('Please fill in all fields');
       return;
     }
 
-    // Parse amount to number
     const targetAmount = parseFloat(amount.replace(/,/g, ''));
     if (isNaN(targetAmount) || targetAmount <= 0) {
       alert('Please enter a valid amount');
       return;
     }
 
-    // Create new goal object
     const newGoal = {
-      id: Date.now(), // Simple ID generation
+      id: Date.now(),
       name: title,
       description: name,
       current: 0,
       target: targetAmount,
-      color: '#3B82F6', // Default color
-      icon: '🎯', // Default icon
+      color: '#3B82F6',
+      icon: '🎯',
       targetDate: targetDate,
+      subGoals: [],
+      completedSubGoals: [],
+      isPrimary: false,
     };
 
-    // Navigate back with the new goal data
     router.back();
     
-    // We'll handle adding to the list in the goals page
-    // For now, we'll use a workaround with global state or event
     if (global.addNewGoal) {
       global.addNewGoal(newGoal);
     }
@@ -72,7 +71,6 @@ export default function AddGoalModal() {
         style={styles.keyboardView}
       >
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Create Goal</Text>
             <TouchableOpacity onPress={handleCancel}>
@@ -80,9 +78,7 @@ export default function AddGoalModal() {
             </TouchableOpacity>
           </View>
 
-          {/* Form Fields */}
           <View style={styles.form}>
-            {/* Title Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Title</Text>
               <TextInput
@@ -94,7 +90,6 @@ export default function AddGoalModal() {
               />
             </View>
 
-            {/* Name Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Name</Text>
               <TextInput
@@ -106,7 +101,6 @@ export default function AddGoalModal() {
               />
             </View>
 
-            {/* Amount Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Amount</Text>
               <TextInput
@@ -119,7 +113,6 @@ export default function AddGoalModal() {
               />
             </View>
 
-            {/* Target Date Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Target Date</Text>
               <TextInput
@@ -131,7 +124,6 @@ export default function AddGoalModal() {
               />
             </View>
 
-            {/* Submit Button */}
             <TouchableOpacity 
               style={styles.submitButton}
               onPress={handleSubmit}

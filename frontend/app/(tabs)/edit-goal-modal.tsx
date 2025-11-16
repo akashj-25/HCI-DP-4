@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Keyboa
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 
-// Add Goal interface at the top
 interface Goal {
   id: number;
   name: string;
@@ -13,6 +12,9 @@ interface Goal {
   color: string;
   icon: string;
   targetDate?: string;
+  subGoals?: string[];
+  completedSubGoals?: number[];
+  isPrimary?: boolean;
 }
 
 declare global {
@@ -30,13 +32,11 @@ export default function EditGoalModal() {
   const [targetDate, setTargetDate] = useState(existingGoal?.targetDate || '');
 
   const handleSubmit = () => {
-    // Validate inputs
     if (!title.trim() || !name.trim() || !targetAmount.trim()) {
       alert('Please fill in all required fields');
       return;
     }
 
-    // Parse amounts to numbers
     const target = parseFloat(targetAmount.replace(/,/g, ''));
     const current = parseFloat(currentAmount.replace(/,/g, ''));
     
@@ -50,7 +50,6 @@ export default function EditGoalModal() {
       return;
     }
 
-    // Create updated goal object
     const updatedGoal = {
       ...existingGoal,
       name: title,
@@ -60,7 +59,6 @@ export default function EditGoalModal() {
       targetDate: targetDate,
     };
 
-    // Navigate back and update
     router.back();
     
     if (global.updateGoal) {
@@ -79,7 +77,6 @@ export default function EditGoalModal() {
         style={styles.keyboardView}
       >
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Edit Goal</Text>
             <TouchableOpacity onPress={handleCancel}>
@@ -87,9 +84,7 @@ export default function EditGoalModal() {
             </TouchableOpacity>
           </View>
 
-          {/* Form Fields */}
           <View style={styles.form}>
-            {/* Title Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Title</Text>
               <TextInput
@@ -101,7 +96,6 @@ export default function EditGoalModal() {
               />
             </View>
 
-            {/* Name Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Description</Text>
               <TextInput
@@ -113,7 +107,6 @@ export default function EditGoalModal() {
               />
             </View>
 
-            {/* Current Amount Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Current Amount</Text>
               <TextInput
@@ -126,7 +119,6 @@ export default function EditGoalModal() {
               />
             </View>
 
-            {/* Target Amount Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Target Amount</Text>
               <TextInput
@@ -139,7 +131,6 @@ export default function EditGoalModal() {
               />
             </View>
 
-            {/* Target Date Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Target Date</Text>
               <TextInput
@@ -151,7 +142,6 @@ export default function EditGoalModal() {
               />
             </View>
 
-            {/* Submit Button */}
             <TouchableOpacity 
               style={styles.submitButton}
               onPress={handleSubmit}

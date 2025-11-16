@@ -1,9 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, StatusBar, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+interface Goal {
+  id: number;
+  name: string;
+  description: string;
+  current: number;
+  target: number;
+  color: string;
+  icon: string;
+  targetDate?: string;
+  subGoals?: string[];
+  completedSubGoals?: number[];
+  isPrimary?: boolean;
+}
+
+declare global {
+  var getPrimaryGoal: (() => Goal | undefined) | undefined;
+}
+
 export default function HomeScreen() {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [primaryGoal, setPrimaryGoal] = useState<Goal | undefined>(undefined);
+
+  useEffect(() => {
+    const updatePrimaryGoal = () => {
+      if (global.getPrimaryGoal) {
+        setPrimaryGoal(global.getPrimaryGoal());
+      }
+    };
+
+    updatePrimaryGoal();
+    const interval = setInterval(updatePrimaryGoal, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -97,6 +129,49 @@ export default function HomeScreen() {
             <View style={[styles.progressBarFill, { width: '68%' }]} />
           </View>
         </View>
+
+        {primaryGoal && (
+          <View style={styles.primaryGoalContainer}>
+            <View style={styles.primaryGoalHeader}>
+              <Text style={styles.primaryGoalTitle}>Primary Goal ❗</Text>
+              <TouchableOpacity style={styles.viewGoalsButton}>
+                <Text style={styles.viewGoalsText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.primaryGoalCard}>
+              <View style={styles.primaryGoalInfo}>
+                <View style={styles.primaryGoalIconContainer}>
+                  <View style={[styles.primaryGoalIcon, { backgroundColor: `${primaryGoal.color}20` }]}>
+                    <Text style={styles.primaryGoalIconText}>{primaryGoal.icon}</Text>
+                  </View>
+                  <View style={styles.primaryGoalTextContainer}>
+                    <Text style={styles.primaryGoalName}>{primaryGoal.name}</Text>
+                    <Text style={styles.primaryGoalDescription}>{primaryGoal.description}</Text>
+                  </View>
+                </View>
+                <View style={styles.primaryGoalProgress}>
+                  <Text style={styles.primaryGoalAmount}>
+                    ${primaryGoal.current.toLocaleString()} / ${primaryGoal.target.toLocaleString()}
+                  </Text>
+                  <View style={styles.primaryGoalProgressBar}>
+                    <View 
+                      style={[
+                        styles.primaryGoalProgressFill, 
+                        { 
+                          width: `${Math.min((primaryGoal.current / primaryGoal.target) * 100, 100)}%`,
+                          backgroundColor: primaryGoal.color 
+                        }
+                      ]} 
+                    />
+                  </View>
+                  <Text style={styles.primaryGoalPercentage}>
+                    {Math.round((primaryGoal.current / primaryGoal.target) * 100)}% complete
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -307,5 +382,95 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#3B82F6',
     borderRadius: 4,
+  },
+  primaryGoalContainer: {
+    marginBottom: 20,
+  },
+  primaryGoalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  primaryGoalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  viewGoalsButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  viewGoalsText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  primaryGoalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  primaryGoalInfo: {
+    gap: 16,
+  },
+  primaryGoalIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  primaryGoalIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryGoalIconText: {
+    fontSize: 24,
+  },
+  primaryGoalTextContainer: {
+    flex: 1,
+  },
+  primaryGoalName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  primaryGoalDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  primaryGoalProgress: {
+    gap: 8,
+  },
+  primaryGoalAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    textAlign: 'center',
+  },
+  primaryGoalProgressBar: {
+    height: 12,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  primaryGoalProgressFill: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  primaryGoalPercentage: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });
