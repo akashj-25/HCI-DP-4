@@ -24,6 +24,7 @@ export default function AddEventModal() {
   const [date, setDate] = useState('');
   const [category, setCategory] = useState('');
   const [eventType, setEventType] = useState<'major' | 'medium' | 'small'>('medium');
+  const [isPositive, setIsPositive] = useState(true);
 
   const handleSubmit = () => {
     // Validate inputs
@@ -32,11 +33,18 @@ export default function AddEventModal() {
       return;
     }
 
-    // Parse amount to number
-    const amountValue = parseFloat(amount.replace(/,/g, ''));
+    // Parse amount to number and apply sign
+    let amountValue = parseFloat(amount.replace(/,/g, ''));
     if (isNaN(amountValue)) {
       alert('Please enter a valid amount');
       return;
+    }
+
+    // Apply negative sign if needed
+    if (!isPositive) {
+      amountValue = -Math.abs(amountValue);
+    } else {
+      amountValue = Math.abs(amountValue);
     }
 
     // Validate date format (basic validation)
@@ -51,7 +59,7 @@ export default function AddEventModal() {
 
     // Create new event object
     const newEvent: TimelineEvent = {
-      id: Date.now(), // Simple ID generation
+      id: Date.now(),
       type: eventType,
       amount: amountValue,
       description: description,
@@ -102,17 +110,62 @@ export default function AddEventModal() {
               />
             </View>
 
-            {/* Amount Field */}
+            {/* Amount Field - UPDATED */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Amount</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="$0.00"
-                placeholderTextColor="#9CA3AF"
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-              />
+              <View style={styles.amountContainer}>
+                {/* Positive/Negative Toggle Buttons */}
+                <View style={styles.signButtonsContainer}>
+                  <TouchableOpacity 
+                    style={[
+                      styles.signButton,
+                      styles.positiveButton,
+                      isPositive && styles.signButtonActive
+                    ]}
+                    onPress={() => setIsPositive(true)}
+                  >
+                    <Text style={[
+                      styles.signButtonText,
+                      isPositive && styles.signButtonTextActive
+                    ]}>
+                      +
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[
+                      styles.signButton,
+                      styles.negativeButton,
+                      !isPositive && styles.signButtonActive
+                    ]}
+                    onPress={() => setIsPositive(false)}
+                  >
+                    <Text style={[
+                      styles.signButtonText,
+                      !isPositive && styles.signButtonTextActive
+                    ]}>
+                      −
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Amount Input */}
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.amountInput,
+                    isPositive ? styles.amountInputPositive : styles.amountInputNegative
+                  ]}
+                  placeholder="0.00"
+                  placeholderTextColor="#9CA3AF"
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <Text style={styles.amountHint}>
+                {isPositive ? '💰 Income or positive transaction' : '💸 Expense or negative transaction'}
+              </Text>
             </View>
 
             {/* Date Field */}
@@ -255,6 +308,58 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
   },
+  // NEW STYLES FOR AMOUNT FIELD
+  amountContainer: {
+    gap: 12,
+  },
+  signButtonsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  signButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  positiveButton: {
+    backgroundColor: '#D1FAE5',
+  },
+  negativeButton: {
+    backgroundColor: '#FEE2E2',
+  },
+  signButtonActive: {
+    borderColor: '#1F2937',
+  },
+  signButtonText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#9CA3AF',
+  },
+  signButtonTextActive: {
+    color: '#1F2937',
+  },
+  amountInput: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  amountInputPositive: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  amountInputNegative: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  amountHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    marginTop: -4,
+  },
+  // END NEW STYLES
   typeButtonsContainer: {
     flexDirection: 'row',
     gap: 12,
