@@ -32,7 +32,7 @@ export default function HomeScreen() {
     };
 
     updatePrimaryGoal();
-    const interval = setInterval(updatePrimaryGoal, 1000);
+    const interval = setInterval(updatePrimaryGoal, 100);
 
     return () => clearInterval(interval);
   }, []);
