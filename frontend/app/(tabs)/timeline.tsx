@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
-    SafeAreaView,
     StatusBar,
     StyleSheet,
     Text,
@@ -10,6 +9,7 @@ import {
     Dimensions,
     Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import ZoomableScrollView from '../ZoomableScrollView';
 
 interface TimelineEvent {

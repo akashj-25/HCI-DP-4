@@ -63,6 +63,13 @@ export default function TabLayout() {
           href: null,
         }}
       />
+      {/* Hide the add event modal from tabs */}
+      <Tabs.Screen
+        name="add-event-modal"
+        options={{
+          href: null, // This hides it from the tab bar
+        }}
+      />
     </Tabs>
   );
 }
