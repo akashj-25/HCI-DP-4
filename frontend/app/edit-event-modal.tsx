@@ -1,9 +1,8 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Timeline Event interface matching the existing one
 interface TimelineEvent {
   id: number;
   type: 'major' | 'medium' | 'small';
@@ -12,54 +11,53 @@ interface TimelineEvent {
   date: string;
   category: string;
   importance: number;
+  isWhatIf?: boolean;
+  whatIfScenario?: string;
 }
 
 declare global {
-  var addNewEvent: ((event: TimelineEvent) => void) | undefined;
+  var updateEvent: ((event: TimelineEvent) => void) | undefined;
 }
 
-export default function AddEventModal() {
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState('');
-  const [category, setCategory] = useState('');
-  const [eventType, setEventType] = useState<'major' | 'medium' | 'small'>('medium');
-  const [isPositive, setIsPositive] = useState(true);
+export default function EditEventModal() {
+  const params = useLocalSearchParams();
+  const existingEvent = params.eventData ? JSON.parse(params.eventData as string) : null;
+
+  const [description, setDescription] = useState(existingEvent?.description || '');
+  const [amount, setAmount] = useState(Math.abs(existingEvent?.amount || 0).toString());
+  const [date, setDate] = useState(existingEvent?.date || '');
+  const [category, setCategory] = useState(existingEvent?.category || '');
+  const [eventType, setEventType] = useState<'major' | 'medium' | 'small'>(existingEvent?.type || 'medium');
+  const [isPositive, setIsPositive] = useState((existingEvent?.amount || 0) >= 0);
 
   const handleSubmit = () => {
-    // Validate inputs
     if (!description.trim() || !amount.trim() || !date.trim() || !category.trim()) {
       alert('Please fill in all fields');
       return;
     }
 
-    // Parse amount to number and apply sign
     let amountValue = parseFloat(amount.replace(/,/g, ''));
     if (isNaN(amountValue)) {
       alert('Please enter a valid amount');
       return;
     }
 
-    // Apply negative sign if needed
     if (!isPositive) {
       amountValue = -Math.abs(amountValue);
     } else {
       amountValue = Math.abs(amountValue);
     }
 
-    // Validate date format (basic validation)
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(date)) {
       alert('Please enter date in YYYY-MM-DD format');
       return;
     }
 
-    // Calculate importance based on event type
     const importance = eventType === 'major' ? 10 : eventType === 'medium' ? 5 : 1;
 
-    // Create new event object
-    const newEvent: TimelineEvent = {
-      id: Date.now(),
+    const updatedEvent: TimelineEvent = {
+      ...existingEvent,
       type: eventType,
       amount: amountValue,
       description: description,
@@ -68,12 +66,10 @@ export default function AddEventModal() {
       importance: importance,
     };
 
-    // Navigate back with the new event data
     router.back();
     
-    // Use global function to add the event
-    if (global.addNewEvent) {
-      global.addNewEvent(newEvent);
+    if (global.updateEvent) {
+      global.updateEvent(updatedEvent);
     }
   };
 
@@ -88,17 +84,14 @@ export default function AddEventModal() {
         style={styles.keyboardView}
       >
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Add Timeline Event</Text>
+            <Text style={styles.headerTitle}>Edit Timeline Event</Text>
             <TouchableOpacity onPress={handleCancel}>
               <Text style={styles.cancelButton}>Cancel</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Form Fields */}
           <View style={styles.form}>
-            {/* Description Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Description</Text>
               <TextInput
@@ -110,11 +103,9 @@ export default function AddEventModal() {
               />
             </View>
 
-            {/* Amount Field - UPDATED */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Amount</Text>
               <View style={styles.amountContainer}>
-                {/* Positive/Negative Toggle Buttons */}
                 <View style={styles.signButtonsContainer}>
                   <TouchableOpacity 
                     style={[
@@ -149,7 +140,6 @@ export default function AddEventModal() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Amount Input */}
                 <TextInput
                   style={[
                     styles.input,
@@ -168,7 +158,6 @@ export default function AddEventModal() {
               </Text>
             </View>
 
-            {/* Date Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Date</Text>
               <TextInput
@@ -180,7 +169,6 @@ export default function AddEventModal() {
               />
             </View>
 
-            {/* Category Field */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Category</Text>
               <TextInput
@@ -192,7 +180,6 @@ export default function AddEventModal() {
               />
             </View>
 
-            {/* Event Type Selection */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Event Size</Text>
               <View style={styles.typeButtonsContainer}>
@@ -246,12 +233,11 @@ export default function AddEventModal() {
               </View>
             </View>
 
-            {/* Submit Button */}
             <TouchableOpacity 
               style={styles.submitButton}
               onPress={handleSubmit}
             >
-              <Text style={styles.submitButtonText}>Add Event</Text>
+              <Text style={styles.submitButtonText}>Update Event</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -308,7 +294,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
   },
-  // NEW STYLES FOR AMOUNT FIELD
   amountContainer: {
     gap: 12,
   },
@@ -359,7 +344,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: -4,
   },
-  // END NEW STYLES
   typeButtonsContainer: {
     flexDirection: 'row',
     gap: 12,

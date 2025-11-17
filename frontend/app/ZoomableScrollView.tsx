@@ -12,13 +12,12 @@ import {
   ScrollView
 } from 'react-native';
 
-const MIN_SCALE = 1;
-const MAX_SCALE = 3;
-
 interface ZoomableScrollViewProps {
   children: React.ReactNode;
   minScale?: number;
   maxScale?: number;
+  initialScale?: number;
+  zoomStep?: number;
   style?: object;
   contentContainerStyle?: object;
   onScaleChange?: (scale: number) => void;
@@ -27,19 +26,21 @@ interface ZoomableScrollViewProps {
 
 const ZoomableScrollView: React.FC<ZoomableScrollViewProps> = ({
   children,
-  minScale = MIN_SCALE,
-  maxScale = MAX_SCALE,
+  minScale = 1,
+  maxScale = 3,
+  initialScale = 1,
+  zoomStep = 1.0,
   style = {},
   contentContainerStyle = {},
   onScaleChange,
   isVertical = false,
 }) => {
-  const [scale, setScale] = useState(minScale);
+  const [scale, setScale] = useState(initialScale);
   const [translateX, setTranslateX] = useState(0);
   const [translateY, setTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   
-  const animatedScale = useRef(new Animated.Value(minScale)).current;
+  const animatedScale = useRef(new Animated.Value(initialScale)).current;
   const animatedTranslateX = useRef(new Animated.Value(0)).current;
   const animatedTranslateY = useRef(new Animated.Value(0)).current;
   
@@ -112,46 +113,34 @@ const ZoomableScrollView: React.FC<ZoomableScrollViewProps> = ({
     setIsDragging(false);
   };
 
-  const zoomInWeb = () => {
-    const newScale = Math.min(maxScale, scale + 0.5);
+  const zoomIn = () => {
+    const newScale = Math.min(maxScale, scale + zoomStep);
     setScale(newScale);
-    onScaleChange?.(newScale);
-  };
-
-  const zoomOutWeb = () => {
-    const newScale = Math.max(minScale, scale - 0.5);
-    setScale(newScale);
-    onScaleChange?.(newScale);
-    
-    if (newScale === minScale) {
-      setTranslateX(0);
-      setTranslateY(0);
+    if (Platform.OS === 'web') {
+      onScaleChange?.(newScale);
+    } else {
+      updateAnimatedValues(newScale, translateX, translateY);
     }
   };
 
-  const resetZoomWeb = () => {
-    setScale(minScale);
-    setTranslateX(0);
-    setTranslateY(0);
-    onScaleChange?.(minScale);
-  };
-
-  const zoomIn = () => {
-    const newScale = Math.min(maxScale, scale + 0.5);
-    setScale(newScale);
-    updateAnimatedValues(newScale, translateX, translateY);
-  };
-
   const zoomOut = () => {
-    const newScale = Math.max(minScale, scale - 0.5);
+    const newScale = Math.max(minScale, scale - zoomStep);
     setScale(newScale);
     
     if (newScale === minScale) {
       setTranslateX(0);
       setTranslateY(0);
-      updateAnimatedValues(newScale, 0, 0);
+      if (Platform.OS === 'web') {
+        onScaleChange?.(newScale);
+      } else {
+        updateAnimatedValues(newScale, 0, 0);
+      }
     } else {
-      updateAnimatedValues(newScale, translateX, translateY);
+      if (Platform.OS === 'web') {
+        onScaleChange?.(newScale);
+      } else {
+        updateAnimatedValues(newScale, translateX, translateY);
+      }
     }
   };
 
@@ -159,20 +148,24 @@ const ZoomableScrollView: React.FC<ZoomableScrollViewProps> = ({
     setScale(minScale);
     setTranslateX(0);
     setTranslateY(0);
-    updateAnimatedValues(minScale, 0, 0);
+    if (Platform.OS === 'web') {
+      onScaleChange?.(minScale);
+    } else {
+      updateAnimatedValues(minScale, 0, 0);
+    }
   };
 
-  // Web implementation
+  // Mobile vertical layout (uses ScrollView)
   if (Platform.OS !== 'web' && isVertical) {
     return (
       <View style={[styles.container, style]}>
         <View style={styles.mobileControls}>
           <View style={styles.controlGroup}>
-            <Button title="+" onPress={zoomIn} />
-            <Button title="−" onPress={zoomOut} />
+            <Button title="Zoom In" onPress={zoomIn} disabled={scale >= maxScale} />
+            <Button title="Zoom Out" onPress={zoomOut} disabled={scale <= minScale} />
             <Button title="Reset" onPress={resetZoom} />
           </View>
-          <Text style={styles.scaleText}>Scale: {scale.toFixed(1)}x</Text>
+          <Text style={styles.scaleText}>Level: {Math.round(scale)}/3</Text>
         </View>
 
         <ScrollView 
@@ -194,16 +187,17 @@ const ZoomableScrollView: React.FC<ZoomableScrollViewProps> = ({
     );
   }
 
-  if (Platform.OS !== 'web') {
+  // Web implementation
+  if (Platform.OS === 'web') {
     return (
       <View style={[styles.container, style]}>
         <View style={styles.webControls}>
           <View style={styles.controlGroup}>
-            <Button title="Zoom In (+)" onPress={zoomInWeb} />
-            <Button title="Zoom Out (-)" onPress={zoomOutWeb} />
-            <Button title="Reset (1x)" onPress={resetZoomWeb} />
+            <Button title="Zoom In" onPress={zoomIn} disabled={scale >= maxScale} />
+            <Button title="Zoom Out" onPress={zoomOut} disabled={scale <= minScale} />
+            <Button title="Reset" onPress={resetZoom} />
           </View>
-          <Text style={styles.scaleText}>Current Scale: {scale.toFixed(1)}x</Text>
+          <Text style={styles.scaleText}>Zoom Level: {Math.round(scale)}/3</Text>
         </View>
 
         <View 
@@ -216,7 +210,7 @@ const ZoomableScrollView: React.FC<ZoomableScrollViewProps> = ({
         >
           <View 
             style={[
-              isVertical ? styles.webContent : styles.webContent,
+              styles.webContent,
               contentContainerStyle,
               {
                 transform: [
@@ -224,7 +218,7 @@ const ZoomableScrollView: React.FC<ZoomableScrollViewProps> = ({
                   { translateY: translateY },
                   { scale: scale },
                 ],
-                minWidth: scale > 1 ? '200%' : '100%',
+                minWidth: '200%',
                 cursor: isDragging ? 'grabbing' : (scale > minScale ? 'grab' : 'default'),
               }
             ]}
@@ -238,20 +232,22 @@ const ZoomableScrollView: React.FC<ZoomableScrollViewProps> = ({
     );
   }
 
-  // Mobile implementation with PanResponder and Animated views
-    return (
-      <View style={[styles.container, style]}>
-        <View style={styles.mobileControls}>
-          <View style={styles.controlGroup}>
-            <Button title="+" onPress={zoomIn} />
-            <Button title="−" onPress={zoomOut} />
-            <Button title="Reset" onPress={resetZoom} />
-          </View>
-          <Text style={styles.scaleText}>Scale: {scale.toFixed(1)}x</Text>
-        </View>      <View style={styles.mobileViewport}>
+  // Mobile horizontal layout with PanResponder
+  return (
+    <View style={[styles.container, style]}>
+      <View style={styles.mobileControls}>
+        <View style={styles.controlGroup}>
+          <Button title="Zoom In" onPress={zoomIn} disabled={scale >= maxScale} />
+          <Button title="Zoom Out" onPress={zoomOut} disabled={scale <= minScale} />
+          <Button title="Reset" onPress={resetZoom} />
+        </View>
+        <Text style={styles.scaleText}>Level: {Math.round(scale)}/3</Text>
+      </View>
+      
+      <View style={styles.mobileViewport}>
         <Animated.View
           style={[
-            isVertical ? styles.mobileContentVertical : styles.mobileContent,
+            styles.mobileContent,
             contentContainerStyle,
             {
               transform: [
@@ -322,11 +318,6 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   mobileContent: {
-    width: '100%',
-    minHeight: '100%',
-    padding: 20,
-  },
-  mobileContentVertical: {
     width: '100%',
     minHeight: '100%',
     padding: 20,
