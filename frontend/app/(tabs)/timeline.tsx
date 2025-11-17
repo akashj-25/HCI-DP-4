@@ -7,10 +7,10 @@ import {
     TouchableOpacity,
     View,
     Dimensions,
-    Platform
+    Platform,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ZoomableScrollView from '../ZoomableScrollView';
 
 interface TimelineEvent {
   id: number;
@@ -20,6 +20,8 @@ interface TimelineEvent {
   date: string;
   category: string;
   importance: number;
+  isWhatIf?: boolean;
+  whatIfScenario?: string;
 }
 
 const timelineData: TimelineEvent[] = [
@@ -28,7 +30,7 @@ const timelineData: TimelineEvent[] = [
     type: 'major',
     amount: 3500,
     description: 'Salary Deposit',
-    date: 'Nov 15',
+    date: '2024-11-15',
     category: 'income',
     importance: 10
   },
@@ -37,7 +39,7 @@ const timelineData: TimelineEvent[] = [
     type: 'major', 
     amount: -1200,
     description: 'Rent Payment',
-    date: 'Nov 1',
+    date: '2024-12-01',
     category: 'housing',
     importance: 9
   },
@@ -46,7 +48,7 @@ const timelineData: TimelineEvent[] = [
     type: 'medium',
     amount: 300,
     description: 'Goal Contribution',
-    date: 'Oct 28',
+    date: '2024-11-28',
     category: 'savings',
     importance: 8
   },
@@ -55,7 +57,7 @@ const timelineData: TimelineEvent[] = [
     type: 'medium',
     amount: -450,
     description: 'Car Payment',
-    date: 'Oct 15',
+    date: '2024-12-15',
     category: 'transportation',
     importance: 7
   },
@@ -64,49 +66,41 @@ const timelineData: TimelineEvent[] = [
     type: 'medium',
     amount: -200,
     description: 'Groceries',
-    date: 'Oct 10',
+    date: '2024-11-20',
     category: 'food',
     importance: 6
   },
+  // What-If Scenarios (hardcoded)
   {
-    id: 6,
-    type: 'small',
-    amount: -120,
-    description: 'Utilities',
-    date: 'Oct 5',
-    category: 'bills',
-    importance: 5
+    id: 101,
+    type: 'major',
+    amount: -3500,
+    description: 'WHAT-IF: Missed Paycheck',
+    date: '2024-12-15',
+    category: 'what-if',
+    importance: 10,
+    isWhatIf: true,
+    whatIfScenario: 'What if I miss one paycheck?'
   },
   {
-    id: 7,
+    id: 102,
     type: 'small',
-    amount: -45,
-    description: 'Dinner Out',
-    date: 'Oct 1',
-    category: 'dining',
-    importance: 2
-  },
-  {
-    id: 8,
-    type: 'small',
-    amount: -25,
-    description: 'Streaming Service',
-    date: 'Sep 28',
-    category: 'entertainment',
-    importance: 3
+    amount: -50,
+    description: 'WHAT-IF: Extra Weekend Spending',
+    date: '2024-11-23',
+    category: 'what-if',
+    importance: 3,
+    isWhatIf: true,
+    whatIfScenario: 'What if I spend $50 more this weekend?'
   }
 ];
 
-const ZOOM_LEVELS = {
-  FAR: 1.0,
-  MEDIUM: 1.5,
-  CLOSE: 2.0
-};
-
 export default function TimelineScreen() {
-  const [currentScale, setCurrentScale] = useState(ZOOM_LEVELS.CLOSE);
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
-  const [events, setEvents] = useState<TimelineEvent[]>(timelineData);
+  const [events, setEvents] = useState<TimelineEvent[]>(
+    timelineData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  );
+  const [showWhatIf, setShowWhatIf] = useState(true);
 
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
@@ -123,8 +117,18 @@ export default function TimelineScreen() {
       });
     };
 
+    (global as any).updateEvent = (updatedEvent: TimelineEvent) => {
+      setEvents(prevEvents => {
+        const updatedEvents = prevEvents.map(event => 
+          event.id === updatedEvent.id ? updatedEvent : event
+        );
+        return updatedEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      });
+    };
+
     return () => {
       delete (global as any).addNewEvent;
+      delete (global as any).updateEvent;
     };
   }, []);
 
@@ -132,35 +136,65 @@ export default function TimelineScreen() {
     router.push('/add-event-modal' as any);
   };
 
-  const isMobile = Platform.OS !== 'web' || screenData.width < 768;
-  const isVerticalLayout = isMobile;
-
-  const getVisibleEvents = (scale: number): TimelineEvent[] => {
-    if (scale <= ZOOM_LEVELS.FAR) {
-      return events.filter(event => event.type === 'major');
-    } else if (scale <= ZOOM_LEVELS.MEDIUM) {
-      return events.filter(event => event.type === 'major' || event.type === 'medium');
-    } else {
-      return events;
-    }
+  const handleEditEvent = (event: TimelineEvent) => {
+    router.push({
+      pathname: '/edit-event-modal',
+      params: { eventData: JSON.stringify(event) }
+    } as any);
   };
 
-  const getEventSize = (eventType: 'major' | 'medium' | 'small', scale: number): number => {
-    const baseSizes = {
-      major: isMobile ? 120 : 140,
-      medium: isMobile ? 90 : 100,
-      small: isMobile ? 70 : 80
-    };
-    
-    const scaleFactor = Math.max(0.8, Math.min(1.2, scale / ZOOM_LEVELS.MEDIUM));
-    return Math.round(baseSizes[eventType] * scaleFactor);
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const visibleEvents = getVisibleEvents(currentScale);
-
-  const handleScaleChange = (scale: number) => {
-    setCurrentScale(scale);
+  const moveEventBack = (eventId: number) => {
+    setEvents(prevEvents => {
+      const updatedEvents = prevEvents.map(event => {
+        if (event.id === eventId) {
+          const currentDate = new Date(event.date);
+          currentDate.setDate(currentDate.getDate() - 1);
+          const newDate = currentDate.toISOString().split('T')[0];
+          return { ...event, date: newDate };
+        }
+        return event;
+      });
+      return updatedEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    });
   };
+
+  const moveEventForward = (eventId: number) => {
+    setEvents(prevEvents => {
+      const updatedEvents = prevEvents.map(event => {
+        if (event.id === eventId) {
+          const currentDate = new Date(event.date);
+          currentDate.setDate(currentDate.getDate() + 1);
+          const newDate = currentDate.toISOString().split('T')[0];
+          return { ...event, date: newDate };
+        }
+        return event;
+      });
+      return updatedEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    });
+  };
+
+  const deleteEvent = (eventId: number) => {
+    setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
+  };
+
+  const calculateRunningBalance = () => {
+    let balance = 2450; // Starting balance from home page
+    return events.map(event => {
+      if (!event.isWhatIf || showWhatIf) {
+        balance += event.amount;
+        return { ...event, runningBalance: balance };
+      }
+      return { ...event, runningBalance: balance };
+    });
+  };
+
+  const eventsWithBalance = calculateRunningBalance();
+  const displayEvents = showWhatIf ? eventsWithBalance : eventsWithBalance.filter(e => !e.isWhatIf);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -168,119 +202,136 @@ export default function TimelineScreen() {
       
       <View style={styles.content}>
         {/* Header */}
-        <View style={isVerticalLayout ? styles.headerVertical : styles.header}>
+        <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.title}>Timeline</Text>
-            {!isVerticalLayout && (
-              <Text style={styles.subtitle}>
-                {currentScale <= ZOOM_LEVELS.FAR && 'Showing major transactions only'}
-                {currentScale > ZOOM_LEVELS.FAR && currentScale <= ZOOM_LEVELS.MEDIUM && 'Showing major & medium transactions'}
-                {currentScale > ZOOM_LEVELS.MEDIUM && 'Showing all transactions'}
-                {' '}({visibleEvents.length} events)
-              </Text>
-            )}
+            <Text style={styles.subtitle}>
+              Showing {displayEvents.length} events
+            </Text>
           </View>
-          {isVerticalLayout && (
-            <TouchableOpacity onPress={handleAddEvent}>
-              <Text style={styles.addEventButton}>Add Event</Text>
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={[styles.whatIfToggle, showWhatIf && styles.whatIfToggleActive]}
+              onPress={() => setShowWhatIf(!showWhatIf)}
+            >
+              <Text style={[styles.whatIfToggleText, showWhatIf && styles.whatIfToggleTextActive]}>
+                {showWhatIf ? '🔮 What-If ON' : '🔮 What-If OFF'}
+              </Text>
             </TouchableOpacity>
-          )}
+            <TouchableOpacity onPress={handleAddEvent} style={styles.addButton}>
+              <Text style={styles.addButtonText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Zoomable Timeline Container */}
-        <ZoomableScrollView
-          minScale={ZOOM_LEVELS.FAR}
-          maxScale={ZOOM_LEVELS.CLOSE + 0.5}
-          style={styles.zoomContainer}
-          contentContainerStyle={[
-            styles.zoomContentContainer,
-            isVerticalLayout && { minHeight: visibleEvents.length * 150 + 200 }
-          ]}
-          onScaleChange={handleScaleChange}
-          isVertical={isVerticalLayout}
+        {/* What-If Info Banner */}
+        {showWhatIf && (
+          <View style={styles.infoBanner}>
+            <Text style={styles.infoBannerText}>
+              💡 What-If scenarios are shown in purple. Use arrows to reschedule events day by day.
+            </Text>
+          </View>
+        )}
+
+        {/* Timeline */}
+        <ScrollView 
+          style={styles.timelineScroll}
+          contentContainerStyle={styles.timelineContent}
+          showsVerticalScrollIndicator={true}
         >
-          <View style={isVerticalLayout ? styles.timelineWrapperVertical : styles.timelineWrapper}>
-            <View style={isVerticalLayout ? styles.timelineLineVertical : styles.timelineLine} />
+          <View style={styles.timelineWrapper}>
+            <View style={styles.timelineLine} />
             
-            <View style={isVerticalLayout ? styles.timelineContainerVertical : styles.timelineContainer}>
-              {visibleEvents.map((event) => (
-                <View key={event.id} style={isVerticalLayout ? styles.timelineItemVertical : styles.timelineItem}>
-                  <View style={[
-                    styles.timelineDot,
-                    isVerticalLayout && {
-                      position: 'absolute',
-                      left: -28,
-                      top: 8,
-                      backgroundColor: event.amount > 0 ? '#10B981' : '#EF4444',
-                      width: 12,
-                      height: 12,
-                      zIndex: 2,
-                    },
-                    !isVerticalLayout && { 
-                      backgroundColor: event.amount > 0 ? '#10B981' : '#EF4444',
-                      width: getEventSize(event.type, currentScale) / 15,
-                      height: getEventSize(event.type, currentScale) / 15
-                    }
-                  ]} />
-                  
-                  <View style={[
-                    styles.eventCard,
-                    isVerticalLayout && styles.eventCardVertical,
-                    { 
-                      width: isVerticalLayout ? screenData.width * 0.8 : getEventSize(event.type, currentScale),
-                      borderTopColor: event.amount > 0 ? '#10B981' : '#EF4444'
-                    }
-                  ]}>
-                    <View style={styles.eventHeader}>
-                      <Text style={[
-                        styles.eventDescription,
-                        isVerticalLayout && { fontSize: 16, fontWeight: '600' }
-                      ]} numberOfLines={isVerticalLayout ? 1 : 2}>
+            {displayEvents.map((event) => (
+              <View key={event.id} style={styles.timelineItem}>
+                <View style={[
+                  styles.timelineDot,
+                  { backgroundColor: event.isWhatIf ? '#A855F7' : (event.amount > 0 ? '#10B981' : '#EF4444') }
+                ]} />
+                
+                <View style={[
+                  styles.eventCard,
+                  event.isWhatIf && styles.whatIfCard,
+                  { borderLeftColor: event.isWhatIf ? '#A855F7' : (event.amount > 0 ? '#10B981' : '#EF4444') }
+                ]}>
+                  {/* Event Header */}
+                  <View style={styles.eventHeader}>
+                    <View style={styles.eventHeaderLeft}>
+                      <Text style={styles.eventDescription} numberOfLines={2}>
                         {event.description}
                       </Text>
-                      <Text style={[
-                        styles.eventAmount,
-                        isVerticalLayout && { fontSize: 18, fontWeight: '700' },
-                        { color: event.amount > 0 ? '#10B981' : '#EF4444' }
-                      ]}>
-                        {event.amount > 0 ? '+' : ''}${Math.abs(event.amount)}
-                      </Text>
-                    </View>
-                    
-                    {isVerticalLayout && (
-                      <Text style={styles.eventDescriptionSubtitle}>
-                        Monthly {event.amount > 0 ? 'income received' : event.category + ' expense'}
-                      </Text>
-                    )}
-                    
-                    <View style={[
-                      styles.eventDetails,
-                      isVerticalLayout && { justifyContent: 'flex-end', marginTop: 8 }
-                    ]}>
-                      <Text style={[
-                        styles.eventDate,
-                        isVerticalLayout && { fontSize: 14, color: '#9CA3AF' }
-                      ]}>{event.date}</Text>
-                      {!isVerticalLayout && (
-                        <Text style={styles.eventCategory}>{event.category}</Text>
+                      {event.whatIfScenario && (
+                        <Text style={styles.whatIfScenarioText}>{event.whatIfScenario}</Text>
                       )}
                     </View>
-                    
-                    {!isVerticalLayout && (
-                      <View style={styles.eventSizeIndicator}>
-                        <Text style={styles.eventSizeText}>
-                          {event.type === 'major' && 'Major'}
-                          {event.type === 'medium' && 'Medium'} 
-                          {event.type === 'small' && 'Small'}
-                        </Text>
+                    <Text style={[
+                      styles.eventAmount,
+                      { color: event.isWhatIf ? '#A855F7' : (event.amount > 0 ? '#10B981' : '#EF4444') }
+                    ]}>
+                      {event.amount > 0 ? '+' : ''}${Math.abs(event.amount)}
+                    </Text>
+                  </View>
+
+                  {/* Event Details */}
+                  <View style={styles.eventDetails}>
+                    <Text style={styles.eventDate}>📅 {formatDate(event.date)}</Text>
+                    <Text style={styles.eventCategory}>{event.category}</Text>
+                  </View>
+
+                  {/* Running Balance */}
+                  {event.runningBalance !== undefined && (
+                    <View style={styles.balanceContainer}>
+                      <Text style={styles.balanceLabel}>Balance after: </Text>
+                      <Text style={[
+                        styles.balanceAmount,
+                        { color: event.runningBalance < 0 ? '#EF4444' : '#10B981' }
+                      ]}>
+                        ${event.runningBalance.toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Action Buttons */}
+                  <View style={styles.actionContainer}>
+                    <View style={styles.actionRow}>
+                      {/* Reschedule Arrows */}
+                      <View style={styles.arrowContainer}>
+                        <TouchableOpacity 
+                          style={styles.arrowButton}
+                          onPress={() => moveEventBack(event.id)}
+                        >
+                          <Text style={styles.arrowText}>◀ -1 day</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.arrowButton}
+                          onPress={() => moveEventForward(event.id)}
+                        >
+                          <Text style={styles.arrowText}>+1 day ▶</Text>
+                        </TouchableOpacity>
                       </View>
-                    )}
+
+                      {/* Edit and Delete Buttons */}
+                      <View style={styles.iconButtonsContainer}>
+                        <TouchableOpacity 
+                          style={styles.iconButton}
+                          onPress={() => handleEditEvent(event)}
+                        >
+                          <Text style={styles.iconButtonText}>✏️</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={[styles.iconButton, styles.deleteIconButton]}
+                          onPress={() => deleteEvent(event.id)}
+                        >
+                          <Text style={styles.iconButtonText}>🗑️</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   </View>
                 </View>
-              ))}
-            </View>
+              </View>
+            ))}
           </View>
-        </ZoomableScrollView>
+        </ScrollView>
       </View>
     </SafeAreaView>
   );
@@ -297,7 +348,18 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   header: {
-    marginBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
   },
   title: {
     fontSize: 28,
@@ -309,158 +371,207 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
   },
-  zoomContainer: {
-    flex: 1,
-    borderWidth: 0,
+  whatIfToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
   },
-  zoomContentContainer: {
-    flexGrow: 1,
+  whatIfToggleActive: {
+    backgroundColor: '#F3E8FF',
+    borderColor: '#A855F7',
+  },
+  whatIfToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  whatIfToggleTextActive: {
+    color: '#A855F7',
+  },
+  addButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#3B82F6',
+  },
+  addButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  infoBanner: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  infoBannerText: {
+    fontSize: 13,
+    color: '#92400E',
+    lineHeight: 18,
+  },
+  timelineScroll: {
+    flex: 1,
+  },
+  timelineContent: {
+    paddingBottom: 100,
   },
   timelineWrapper: {
-    flex: 1,
     position: 'relative',
-    marginTop: 40,
-    minHeight: 300, 
+    paddingLeft: 40,
   },
   timelineLine: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 12,
-    height: 3,
-    backgroundColor: '#D1D5DB',
-    zIndex: 1,
-  },
-  timelineContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-    minWidth: '200%',
-  },
-  timelineItem: {
-    alignItems: 'center',
-    marginRight: 25,
-    position: 'relative',
-    minWidth: 100,
-  },
-  timelineDot: {
-    borderRadius: 50,
-    zIndex: 2,
-    marginBottom: 10,
-  },
-  eventCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    borderTopWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    minHeight: 100,
-  },
-  eventHeader: {
-    marginBottom: 6,
-  },
-  eventDescription: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  eventAmount: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  eventDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  eventDate: {
-    fontSize: 9,
-    color: '#6B7280',
-  },
-  eventCategory: {
-    fontSize: 11,
-    color: '#6B7280',
-    textTransform: 'capitalize',
-  },
-  eventSizeIndicator: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  eventSizeText: {
-    fontSize: 9,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  timelineWrapperVertical: {
-    flex: 1,
-    position: 'relative',
-    marginTop: 20,
-    paddingHorizontal: 20,
-  },
-  timelineLineVertical: {
-    position: 'absolute',
-    left: 50,
+    left: 16,
     top: 0,
     bottom: 0,
     width: 2,
     backgroundColor: '#E5E7EB',
-    zIndex: 1,
   },
-  timelineContainerVertical: {
-    flexDirection: 'column',
-    paddingLeft: 20,
-    paddingTop: 20,
-    paddingBottom: 100,
-  },
-  timelineItemVertical: {
+  timelineItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 30,
+    marginBottom: 24,
     position: 'relative',
-    paddingLeft: 40,
   },
-  eventCardVertical: {
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    position: 'absolute',
+    left: -34,
+    top: 8,
+    zIndex: 2,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  eventCard: {
+    flex: 1,
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    borderLeftWidth: 0,
-    borderTopWidth: 0,
+    borderLeftWidth: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
-    marginLeft: 15,
-    flex: 1,
   },
-  eventDescriptionSubtitle: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 4,
+  whatIfCard: {
+    backgroundColor: '#FAF5FF',
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  eventHeaderLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  eventDescription: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
     marginBottom: 4,
   },
-  headerVertical: {
+  whatIfScenarioText: {
+    fontSize: 12,
+    color: '#A855F7',
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  eventAmount: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  eventDetails: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 0,
+    marginBottom: 8,
   },
-  headerLeft: {
+  eventDate: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  eventCategory: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textTransform: 'capitalize',
+  },
+  balanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    marginBottom: 12,
+  },
+  balanceLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  balanceAmount: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  actionContainer: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  arrowContainer: {
+    flexDirection: 'row',
+    gap: 8,
     flex: 1,
   },
-  addEventButton: {
-    fontSize: 16,
+  arrowButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    alignItems: 'center',
+  },
+  arrowText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: '#3B82F6',
-    fontWeight: '500',
+  },
+  iconButtonsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteIconButton: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FECACA',
+  },
+  iconButtonText: {
+    fontSize: 18,
   },
 });
