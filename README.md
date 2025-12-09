@@ -13,6 +13,55 @@ FinCompanion is a mobile-first budgeting and savings application designed to hel
 - **Password Security** - Secure password change functionality with validation
 - **Responsive Design** - Optimized for mobile devices with clean, intuitive UI
 
+## Heuristic Evaluation Changes
+
+As part of improving the overall usability and aligning the app with **Heuristic 4: Consistency & Standards**, the following revisions were implemented throughout the system:
+
+### **Design System & Core Standards**
+- Centralized all UI constants into `constants/design.ts`
+- Established consistent color rules:
+  - **Green** = Income  
+  - **Red** = Expense  
+  - **Purple** = What-If Scenario  
+- Adopted unified terminology (e.g., “Impact Level” replaces “Event Size”)
+- Standardized icon mappings (removed emojis, added Feather icons)
+- Defined a single date format across the app (**MM/DD/YYYY**)
+
+### **Date Handling Improvements**
+- Replaced all text-based date inputs with a standardized `DatePicker` component
+- Implemented auto-formatting for date entry  
+- Added validation for proper MM/DD/YYYY format  
+- Ensured consistent date handling across all modals and screens
+
+### **Navigation & Workflow Consistency**
+- Updated create/edit flows to return to the correct originating screen  
+  - Creating/editing a goal → returns to **Goals**  
+  - Creating/editing an event → returns to **Timeline**
+- Ensured consistent use of back buttons and page titles
+- Unified modal styling and required-field indicators
+
+### **Iconography & Visual Language**
+- Replaced all emoji-based icons in `_layout.tsx` with professional Feather icons  
+- Introduced consistent icons for income, expense, editing, deleting, and marking primary goals
+- Updated Timeline and Goals screens for cohesive visual structure
+
+### **Form & Modal Standardization**
+- Removed redundant fields (e.g., “Title” + “Name” → single **Goal Name**)
+- Added clear helper text and optional-field markers
+- Applied consistent validation rules across all forms
+- Improved Impact Level descriptions for clarity and predictability
+
+### **Timeline & Event Display Updates**
+- Added a dedicated **What-If Scenario** badge (instead of text prefixes)
+- Standardized amount formatting using both color and minus sign  
+- Unified card layout for all event types
+- Added confirmation dialogue for delete actions
+
+### **Primary Goal Indicator Improvements**
+- Replaced misleading red exclamation mark with a gold **star** icon  
+- Updated related displays in `goals.tsx` and `index.tsx` for clarity and consistency
+
+
 ## System Requirements
 
 ### Required Software
