@@ -1,6 +1,11 @@
+// frontend/app/(tabs)/index.tsx
+// FIXED VERSION - Star icon for primary goal, consistent styling
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, StatusBar, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { Colors } from '../../constants/design';
 
 interface Goal {
   id: number;
@@ -54,13 +59,17 @@ export default function HomeScreen() {
           activeOpacity={0.8}
         >
           <View style={styles.iconCircle}>
-            <Text style={styles.checkIcon}>✓</Text>
+            <Feather name="check" size={24} color="#fff" />
           </View>
           <View style={styles.statusTextContainer}>
             <Text style={styles.statusTitle}>On Track</Text>
             <Text style={styles.statusSubtitle}>You are meeting your goals</Text>
           </View>
-          <Text style={styles.dropdownIcon}>{isExpanded ? '▲' : '▼'}</Text>
+          <Feather 
+            name={isExpanded ? "chevron-up" : "chevron-down"} 
+            size={20} 
+            color="#047857"
+          />
         </TouchableOpacity>
 
         {/* Expanded Dropdown Content */}
@@ -92,7 +101,7 @@ export default function HomeScreen() {
                   <Text style={styles.dropdownItemDescription}>Available for eating out this week</Text>
                 </View>
                 <View style={styles.safeToSpendBadge}>
-                  <Text style={styles.safeToSpendBadgeText}>🍽️</Text>
+                  <Feather name="coffee" size={20} color={Colors.neutral} />
                 </View>
               </View>
               <Text style={styles.safeToSpendNote}>
@@ -108,7 +117,7 @@ export default function HomeScreen() {
         <View style={styles.statsRow}>
           {/* Current Balance Card */}
           <View style={[styles.statCard, styles.balanceCard]}>
-            <Text style={[styles.statValue, {color: '#3B82F6'}]}>$2,450</Text>
+            <Text style={[styles.statValue, {color: Colors.neutral}]}>$2,450</Text>
             <Text style={styles.statLabel}>Current Balance</Text>
           </View>
 
@@ -130,10 +139,14 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* FIXED: Primary Goal with Star Icon */}
         {primaryGoal && (
           <View style={styles.primaryGoalContainer}>
             <View style={styles.primaryGoalHeader}>
-              <Text style={styles.primaryGoalTitle}>Primary Goal ❗</Text>
+              <View style={styles.primaryGoalTitleRow}>
+                <Feather name="star" size={20} color={Colors.warning} fill={Colors.warning} />
+                <Text style={styles.primaryGoalTitle}>Primary Goal</Text>
+              </View>
               <TouchableOpacity style={styles.viewGoalsButton}>
                 <Text style={styles.viewGoalsText}>View All</Text>
               </TouchableOpacity>
@@ -180,7 +193,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundMedium,
   },
   content: {
     flex: 1,
@@ -194,12 +207,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
   statusCard: {
     backgroundColor: '#D1FAE5',
@@ -213,15 +226,10 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#10B981',
+    backgroundColor: Colors.success,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
-  },
-  checkIcon: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: 'bold',
   },
   statusTextContainer: {
     flex: 1,
@@ -236,14 +244,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#047857',
   },
-  dropdownIcon: {
-    fontSize: 16,
-    color: '#047857',
-    fontWeight: '600',
-    marginLeft: 8,
-  },
   dropdownContent: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.cardBackground,
     borderRadius: 16,
     padding: 20,
     marginBottom: 28,
@@ -259,7 +261,7 @@ const styles = StyleSheet.create({
   dropdownSectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   dropdownItem: {
@@ -273,12 +275,12 @@ const styles = StyleSheet.create({
   dropdownItemAmount: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#10B981',
+    color: Colors.success,
     marginBottom: 4,
   },
   dropdownItemDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
   irregularBadge: {
     backgroundColor: '#FEF3C7',
@@ -293,13 +295,13 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.borderMedium,
     marginVertical: 20,
   },
   safeToSpendAmount: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#3B82F6',
+    color: Colors.neutral,
     marginBottom: 4,
   },
   safeToSpendBadge: {
@@ -310,19 +312,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  safeToSpendBadgeText: {
-    fontSize: 20,
-  },
   safeToSpendNote: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     marginTop: 8,
     fontStyle: 'italic',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   statsRow: {
@@ -348,10 +347,10 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 13,
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
   progressContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.cardBackground,
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
@@ -365,22 +364,22 @@ const styles = StyleSheet.create({
   progressTitle: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#374151',
+    color: Colors.textPrimary,
   },
   progressPercentage: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.textPrimary,
   },
   progressBarBg: {
     height: 8,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.borderMedium,
     borderRadius: 4,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: Colors.neutral,
     borderRadius: 4,
   },
   primaryGoalContainer: {
@@ -392,24 +391,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  primaryGoalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   primaryGoalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.textPrimary,
   },
   viewGoalsButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundMedium,
   },
   viewGoalsText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     fontWeight: '500',
   },
   primaryGoalCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.cardBackground,
     borderRadius: 16,
     padding: 20,
     shadowColor: '#000',
@@ -442,12 +446,12 @@ const styles = StyleSheet.create({
   primaryGoalName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   primaryGoalDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
   primaryGoalProgress: {
     gap: 8,
@@ -455,12 +459,12 @@ const styles = StyleSheet.create({
   primaryGoalAmount: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     textAlign: 'center',
   },
   primaryGoalProgressBar: {
     height: 12,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.borderMedium,
     borderRadius: 6,
     overflow: 'hidden',
   },
@@ -470,7 +474,7 @@ const styles = StyleSheet.create({
   },
   primaryGoalPercentage: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
 });

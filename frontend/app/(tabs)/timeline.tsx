@@ -1,3 +1,6 @@
+// frontend/app/(tabs)/timeline.tsx
+// FIXED VERSION - Better date display, What-If badges, consistent colors
+
 import { router } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
@@ -7,10 +10,12 @@ import {
     TouchableOpacity,
     View,
     Dimensions,
-    Platform,
     ScrollView,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { Colors, DateConfig, NavigationPaths } from '../../constants/design';
 
 interface TimelineEvent {
   id: number;
@@ -75,7 +80,7 @@ const timelineData: TimelineEvent[] = [
     id: 101,
     type: 'major',
     amount: -3500,
-    description: 'WHAT-IF: Missed Paycheck',
+    description: 'Missed Paycheck',
     date: '2024-12-15',
     category: 'what-if',
     importance: 10,
@@ -86,7 +91,7 @@ const timelineData: TimelineEvent[] = [
     id: 102,
     type: 'small',
     amount: -50,
-    description: 'WHAT-IF: Extra Weekend Spending',
+    description: 'Extra Weekend Spending',
     date: '2024-11-23',
     category: 'what-if',
     importance: 3,
@@ -133,19 +138,20 @@ export default function TimelineScreen() {
   }, []);
 
   const handleAddEvent = () => {
-    router.push('/add-event-modal' as any);
+    router.push(NavigationPaths.addEvent);
   };
 
   const handleEditEvent = (event: TimelineEvent) => {
     router.push({
-      pathname: '/edit-event-modal',
+      pathname: NavigationPaths.editEvent,
       params: { eventData: JSON.stringify(event) }
-    } as any);
+    });
   };
 
+  // FIXED: Format date consistently
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const moveEventBack = (eventId: number) => {
@@ -178,8 +184,24 @@ export default function TimelineScreen() {
     });
   };
 
-  const deleteEvent = (eventId: number) => {
-    setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
+  const deleteEvent = (eventId: number, eventDescription: string) => {
+    Alert.alert(
+      'Delete Event',
+      `Are you sure you want to delete "${eventDescription}"?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
+          },
+        },
+      ]
+    );
   };
 
   const calculateRunningBalance = () => {
@@ -195,6 +217,12 @@ export default function TimelineScreen() {
 
   const eventsWithBalance = calculateRunningBalance();
   const displayEvents = showWhatIf ? eventsWithBalance : eventsWithBalance.filter(e => !e.isWhatIf);
+
+  // FIXED: Get color for event type
+  const getEventColor = (event: TimelineEvent) => {
+    if (event.isWhatIf) return Colors.whatIf;
+    return event.amount > 0 ? Colors.income : Colors.expense;
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -214,12 +242,18 @@ export default function TimelineScreen() {
               style={[styles.whatIfToggle, showWhatIf && styles.whatIfToggleActive]}
               onPress={() => setShowWhatIf(!showWhatIf)}
             >
+              <Feather 
+                name="help-circle" 
+                size={16} 
+                color={showWhatIf ? Colors.whatIf : Colors.textSecondary}
+              />
               <Text style={[styles.whatIfToggleText, showWhatIf && styles.whatIfToggleTextActive]}>
-                {showWhatIf ? '🔮 What-If ON' : '🔮 What-If OFF'}
+                What-If
               </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleAddEvent} style={styles.addButton}>
-              <Text style={styles.addButtonText}>+ Add</Text>
+              <Feather name="plus" size={18} color="#fff" />
+              <Text style={styles.addButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -227,8 +261,9 @@ export default function TimelineScreen() {
         {/* What-If Info Banner */}
         {showWhatIf && (
           <View style={styles.infoBanner}>
+            <Feather name="info" size={16} color="#92400E" />
             <Text style={styles.infoBannerText}>
-              💡 What-If scenarios are shown in purple. Use arrows to reschedule events day by day.
+              What-If scenarios help you explore financial outcomes. Use arrows to adjust dates.
             </Text>
           </View>
         )}
@@ -242,94 +277,120 @@ export default function TimelineScreen() {
           <View style={styles.timelineWrapper}>
             <View style={styles.timelineLine} />
             
-            {displayEvents.map((event) => (
-              <View key={event.id} style={styles.timelineItem}>
-                <View style={[
-                  styles.timelineDot,
-                  { backgroundColor: event.isWhatIf ? '#A855F7' : (event.amount > 0 ? '#10B981' : '#EF4444') }
-                ]} />
-                
-                <View style={[
-                  styles.eventCard,
-                  event.isWhatIf && styles.whatIfCard,
-                  { borderLeftColor: event.isWhatIf ? '#A855F7' : (event.amount > 0 ? '#10B981' : '#EF4444') }
-                ]}>
-                  {/* Event Header */}
-                  <View style={styles.eventHeader}>
-                    <View style={styles.eventHeaderLeft}>
-                      <Text style={styles.eventDescription} numberOfLines={2}>
-                        {event.description}
-                      </Text>
-                      {event.whatIfScenario && (
-                        <Text style={styles.whatIfScenarioText}>{event.whatIfScenario}</Text>
-                      )}
-                    </View>
-                    <Text style={[
-                      styles.eventAmount,
-                      { color: event.isWhatIf ? '#A855F7' : (event.amount > 0 ? '#10B981' : '#EF4444') }
-                    ]}>
-                      {event.amount > 0 ? '+' : ''}${Math.abs(event.amount)}
-                    </Text>
-                  </View>
-
-                  {/* Event Details */}
-                  <View style={styles.eventDetails}>
-                    <Text style={styles.eventDate}>📅 {formatDate(event.date)}</Text>
-                    <Text style={styles.eventCategory}>{event.category}</Text>
-                  </View>
-
-                  {/* Running Balance */}
-                  {event.runningBalance !== undefined && (
-                    <View style={styles.balanceContainer}>
-                      <Text style={styles.balanceLabel}>Balance after: </Text>
-                      <Text style={[
-                        styles.balanceAmount,
-                        { color: event.runningBalance < 0 ? '#EF4444' : '#10B981' }
-                      ]}>
-                        ${event.runningBalance.toLocaleString()}
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Action Buttons */}
-                  <View style={styles.actionContainer}>
-                    <View style={styles.actionRow}>
-                      {/* Reschedule Arrows */}
-                      <View style={styles.arrowContainer}>
-                        <TouchableOpacity 
-                          style={styles.arrowButton}
-                          onPress={() => moveEventBack(event.id)}
-                        >
-                          <Text style={styles.arrowText}>◀ -1 day</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={styles.arrowButton}
-                          onPress={() => moveEventForward(event.id)}
-                        >
-                          <Text style={styles.arrowText}>+1 day ▶</Text>
-                        </TouchableOpacity>
+            {displayEvents.map((event) => {
+              const eventColor = getEventColor(event);
+              
+              return (
+                <View key={event.id} style={styles.timelineItem}>
+                  <View style={[
+                    styles.timelineDot,
+                    { backgroundColor: eventColor }
+                  ]} />
+                  
+                  <View style={[
+                    styles.eventCard,
+                    event.isWhatIf && styles.whatIfCard,
+                    { borderLeftColor: eventColor }
+                  ]}>
+                    {/* FIXED: What-If Badge */}
+                    {event.isWhatIf && (
+                      <View style={styles.whatIfBadge}>
+                        <Feather name="help-circle" size={12} color={Colors.whatIf} />
+                        <Text style={styles.whatIfBadgeText}>What-If Scenario</Text>
                       </View>
+                    )}
 
-                      {/* Edit and Delete Buttons */}
-                      <View style={styles.iconButtonsContainer}>
-                        <TouchableOpacity 
-                          style={styles.iconButton}
-                          onPress={() => handleEditEvent(event)}
-                        >
-                          <Text style={styles.iconButtonText}>✏️</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={[styles.iconButton, styles.deleteIconButton]}
-                          onPress={() => deleteEvent(event.id)}
-                        >
-                          <Text style={styles.iconButtonText}>🗑️</Text>
-                        </TouchableOpacity>
+                    {/* Event Header */}
+                    <View style={styles.eventHeader}>
+                      <View style={styles.eventHeaderLeft}>
+                        <Text style={styles.eventDescription} numberOfLines={2}>
+                          {event.description}
+                        </Text>
+                        {event.whatIfScenario && (
+                          <Text style={styles.whatIfScenarioText}>{event.whatIfScenario}</Text>
+                        )}
+                      </View>
+                      <View style={styles.amountContainer}>
+                        <Text style={[
+                          styles.eventAmount,
+                          { color: eventColor }
+                        ]}>
+                          {event.amount > 0 ? '+' : '−'}${Math.abs(event.amount).toLocaleString()}
+                        </Text>
+                        <Feather 
+                          name={event.amount > 0 ? "trending-up" : "trending-down"} 
+                          size={16} 
+                          color={eventColor}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Event Details */}
+                    <View style={styles.eventDetails}>
+                      <View style={styles.dateContainer}>
+                        <Feather name="calendar" size={14} color={Colors.textSecondary} />
+                        <Text style={styles.eventDate}>{formatDate(event.date)}</Text>
+                      </View>
+                      <View style={styles.categoryBadge}>
+                        <Text style={styles.eventCategory}>{event.category}</Text>
+                      </View>
+                    </View>
+
+                    {/* Running Balance */}
+                    {event.runningBalance !== undefined && (
+                      <View style={styles.balanceContainer}>
+                        <Text style={styles.balanceLabel}>Balance after: </Text>
+                        <Text style={[
+                          styles.balanceAmount,
+                          { color: event.runningBalance < 0 ? Colors.error : Colors.success }
+                        ]}>
+                          {event.runningBalance < 0 ? '−' : ''}${Math.abs(event.runningBalance).toLocaleString()}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Action Buttons */}
+                    <View style={styles.actionContainer}>
+                      <View style={styles.actionRow}>
+                        {/* Reschedule Arrows */}
+                        <View style={styles.arrowContainer}>
+                          <TouchableOpacity 
+                            style={styles.arrowButton}
+                            onPress={() => moveEventBack(event.id)}
+                          >
+                            <Feather name="arrow-left" size={14} color={Colors.neutral} />
+                            <Text style={styles.arrowText}>-1 day</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={styles.arrowButton}
+                            onPress={() => moveEventForward(event.id)}
+                          >
+                            <Text style={styles.arrowText}>+1 day</Text>
+                            <Feather name="arrow-right" size={14} color={Colors.neutral} />
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Edit and Delete Buttons */}
+                        <View style={styles.iconButtonsContainer}>
+                          <TouchableOpacity 
+                            style={styles.iconButton}
+                            onPress={() => handleEditEvent(event)}
+                          >
+                            <Feather name="edit-2" size={16} color={Colors.textSecondary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.iconButton, styles.deleteIconButton]}
+                            onPress={() => deleteEvent(event.id, event.description)}
+                          >
+                            <Feather name="trash-2" size={16} color={Colors.error} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         </ScrollView>
       </View>
@@ -340,7 +401,7 @@ export default function TimelineScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundMedium,
   },
   content: {
     flex: 1,
@@ -364,38 +425,44 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
   whatIfToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundMedium,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.borderMedium,
   },
   whatIfToggleActive: {
-    backgroundColor: '#F3E8FF',
-    borderColor: '#A855F7',
+    backgroundColor: Colors.whatIf + '20',
+    borderColor: Colors.whatIf,
   },
   whatIfToggleText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
   whatIfToggleTextActive: {
-    color: '#A855F7',
+    color: Colors.whatIf,
   },
   addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#3B82F6',
+    backgroundColor: Colors.neutral,
   },
   addButtonText: {
     fontSize: 14,
@@ -403,14 +470,18 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
     backgroundColor: '#FEF3C7',
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
+    borderLeftColor: Colors.warning,
   },
   infoBannerText: {
+    flex: 1,
     fontSize: 13,
     color: '#92400E',
     lineHeight: 18,
@@ -431,7 +502,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.borderMedium,
   },
   timelineItem: {
     flexDirection: 'row',
@@ -452,7 +523,7 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.cardBackground,
     borderRadius: 12,
     padding: 16,
     borderLeftWidth: 4,
@@ -464,6 +535,23 @@ const styles = StyleSheet.create({
   },
   whatIfCard: {
     backgroundColor: '#FAF5FF',
+  },
+  whatIfBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.whatIf + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  whatIfBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.whatIf,
+    textTransform: 'uppercase',
   },
   eventHeader: {
     flexDirection: 'row',
@@ -478,17 +566,22 @@ const styles = StyleSheet.create({
   eventDescription: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   whatIfScenarioText: {
     fontSize: 12,
-    color: '#A855F7',
+    color: Colors.whatIf,
     fontStyle: 'italic',
     marginTop: 2,
   },
+  amountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   eventAmount: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
   },
   eventDetails: {
@@ -497,26 +590,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   eventDate: {
     fontSize: 13,
-    color: '#6B7280',
+    color: Colors.textSecondary,
+  },
+  categoryBadge: {
+    backgroundColor: Colors.backgroundLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   eventCategory: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    fontSize: 11,
+    color: Colors.textSecondary,
     textTransform: 'capitalize',
+    fontWeight: '500',
   },
   balanceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: Colors.borderLight,
     marginBottom: 12,
   },
   balanceLabel: {
     fontSize: 13,
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
   balanceAmount: {
     fontSize: 15,
@@ -525,7 +630,7 @@ const styles = StyleSheet.create({
   actionContainer: {
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: Colors.borderMedium,
   },
   actionRow: {
     flexDirection: 'row',
@@ -540,18 +645,21 @@ const styles = StyleSheet.create({
   },
   arrowButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderRadius: 8,
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
     borderColor: '#DBEAFE',
-    alignItems: 'center',
   },
   arrowText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: Colors.neutral,
   },
   iconButtonsContainer: {
     flexDirection: 'row',
@@ -561,17 +669,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundLight,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.borderMedium,
     justifyContent: 'center',
     alignItems: 'center',
   },
   deleteIconButton: {
     backgroundColor: '#FEE2E2',
     borderColor: '#FECACA',
-  },
-  iconButtonText: {
-    fontSize: 18,
   },
 });

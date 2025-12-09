@@ -1,7 +1,20 @@
+// frontend/app/(tabs)/goals.tsx
+// FIXED VERSION - Star icon for primary, better UI
+
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, StatusBar, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  StatusBar, 
+  ScrollView, 
+  TouchableOpacity, 
+  Alert 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import { Colors, NavigationPaths } from '../../constants/design';
 
 interface Goal {
   id: number;
@@ -26,11 +39,9 @@ declare global {
 }
 
 export default function GoalsScreen() {
-  // Use global state instead of local state
   const [goals, setGoals] = useState<Goal[]>(global.goalsState || []);
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
 
-  // Sync with global state
   useEffect(() => {
     const interval = setInterval(() => {
       if (global.goalsState) {
@@ -83,19 +94,19 @@ export default function GoalsScreen() {
       global.setGoalsState(prevGoals => 
         prevGoals.map(goal => ({
           ...goal,
-          isPrimary: goal.id === goalId
+          isPrimary: goal.id === goalId ? !goal.isPrimary : false
         }))
       );
     }
   };
 
   const handleAddGoal = () => {
-    router.push('/(tabs)/add-goal-modal');
+    router.push(NavigationPaths.addGoal);
   };
 
   const handleEditGoal = (goal: Goal) => {
     router.push({
-      pathname: '/(tabs)/edit-goal-modal',
+      pathname: NavigationPaths.editGoal,
       params: { goalData: JSON.stringify(goal) }
     });
   };
@@ -129,18 +140,13 @@ export default function GoalsScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>My Goals</Text>
           <TouchableOpacity style={styles.addButton} onPress={handleAddGoal}>
-            <Text style={styles.addButtonText}>+</Text>
+            <Feather name="plus" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.goalsList}>
           {goals.map((goal) => (
-            <TouchableOpacity 
-              key={goal.id} 
-              style={styles.goalCard}
-              onPress={() => handleEditGoal(goal)}
-              activeOpacity={0.7}
-            >
+            <View key={goal.id} style={styles.goalCard}>
               <View style={styles.goalHeader}>
                 <View style={[styles.goalIcon, { backgroundColor: `${goal.color}20` }]}>
                   <Text style={styles.goalIconText}>{goal.icon}</Text>
@@ -148,26 +154,37 @@ export default function GoalsScreen() {
                 <View style={styles.goalInfo}>
                   <View style={styles.goalNameRow}>
                     <Text style={styles.goalName}>{goal.name}</Text>
+                    {/* FIXED: Star icon for primary goal */}
                     <TouchableOpacity
                       style={styles.primaryButton}
                       onPress={() => setPrimaryGoal(goal.id)}
                     >
-                      <Text style={[
-                        styles.primaryIcon,
-                        goal.isPrimary && styles.primaryIconActive
-                      ]}>
-                        ❗
-                      </Text>
+                      <Feather 
+                        name="star" 
+                        size={18} 
+                        color={goal.isPrimary ? Colors.warning : Colors.textTertiary}
+                        fill={goal.isPrimary ? Colors.warning : 'transparent'}
+                      />
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.goalDescription}>{goal.description}</Text>
                 </View>
-                <TouchableOpacity 
-                  style={styles.deleteButton}
-                  onPress={() => handleDeleteGoal(goal.id, goal.name)}
-                >
-                  <Text style={styles.deleteButtonText}>🗑️</Text>
-                </TouchableOpacity>
+                
+                {/* FIXED: Action buttons in a more subtle style */}
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => handleEditGoal(goal)}
+                  >
+                    <Feather name="edit-2" size={18} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => handleDeleteGoal(goal.id, goal.name)}
+                  >
+                    <Feather name="trash-2" size={18} color={Colors.error} />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={styles.progressSection}>
@@ -188,6 +205,9 @@ export default function GoalsScreen() {
                     ]} 
                   />
                 </View>
+                <Text style={styles.progressPercentage}>
+                  {Math.round(calculateProgress(goal.current, goal.target))}% complete
+                </Text>
               </View>
 
               {goal.subGoals && goal.subGoals.length > 0 && (
@@ -199,37 +219,45 @@ export default function GoalsScreen() {
                     <Text style={styles.subGoalsTitle}>
                       Tasks to Help You Succeed ({goal.subGoals.length})
                     </Text>
-                    <Text style={styles.dropdownArrow}>
-                      {expandedGoals.has(goal.id) ? '▲' : '▼'}
-                    </Text>
+                    <Feather 
+                      name={expandedGoals.has(goal.id) ? "chevron-up" : "chevron-down"} 
+                      size={18} 
+                      color={Colors.textSecondary}
+                    />
                   </TouchableOpacity>
                   
                   {expandedGoals.has(goal.id) && (
                     <View style={styles.subGoalsDropdownContent}>
-                      {goal.subGoals.map((subGoal, subIndex) => (
-                        <TouchableOpacity 
-                          key={subIndex}
-                          style={styles.subGoalItem}
-                          onPress={() => toggleSubGoalCompletion(goal.id, subIndex)}
-                        >
-                          <View style={styles.subGoalCheckbox}>
-                            <Text style={styles.checkboxIcon}>
-                              {goal.completedSubGoals && goal.completedSubGoals.includes(subIndex) ? '✅' : '⭕'}
+                      {goal.subGoals.map((subGoal, subIndex) => {
+                        const isCompleted = goal.completedSubGoals?.includes(subIndex);
+                        return (
+                          <TouchableOpacity 
+                            key={subIndex}
+                            style={styles.subGoalItem}
+                            onPress={() => toggleSubGoalCompletion(goal.id, subIndex)}
+                          >
+                            <View style={[
+                              styles.subGoalCheckbox,
+                              isCompleted && styles.subGoalCheckboxCompleted
+                            ]}>
+                              {isCompleted && (
+                                <Feather name="check" size={14} color="#fff" />
+                              )}
+                            </View>
+                            <Text style={[
+                              styles.subGoalText,
+                              isCompleted && styles.completedSubGoalText
+                            ]}>
+                              {subGoal}
                             </Text>
-                          </View>
-                          <Text style={[
-                            styles.subGoalText,
-                            goal.completedSubGoals && goal.completedSubGoals.includes(subIndex) && styles.completedSubGoalText
-                          ]}>
-                            {subGoal}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   )}
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
       </ScrollView>
@@ -240,7 +268,7 @@ export default function GoalsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundMedium,
   },
   content: {
     flex: 1,
@@ -256,33 +284,27 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.textPrimary,
   },
   addButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#3B82F6',
+    backgroundColor: Colors.neutral,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#3B82F6',
+    shadowColor: Colors.neutral,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
-  },
-  addButtonText: {
-    fontSize: 28,
-    color: '#fff',
-    fontWeight: '300',
-    marginTop: -2,
   },
   goalsList: {
     gap: 16,
     paddingBottom: 20,
   },
   goalCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.cardBackground,
     borderRadius: 16,
     padding: 20,
     shadowColor: '#000',
@@ -314,64 +336,57 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   goalName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     flex: 1,
+    marginRight: 8,
   },
   primaryButton: {
     padding: 4,
   },
-  primaryIcon: {
-    fontSize: 16,
-    opacity: 0.3,
-    color: '#6B7280',
-  },
-  primaryIconActive: {
-    opacity: 1,
-    color: '#DC2626',
-  },
   goalDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.textSecondary,
   },
-  deleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FEE2E2',
-    justifyContent: 'center',
-    alignItems: 'center',
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
     marginLeft: 8,
   },
-  deleteButtonText: {
-    fontSize: 18,
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: Colors.backgroundLight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   progressSection: {
     marginTop: 4,
+    gap: 8,
   },
   progressLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
   progressLabel: {
     fontSize: 13,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     fontWeight: '500',
   },
   progressAmount: {
     fontSize: 14,
-    color: '#1F2937',
+    color: Colors.textPrimary,
     fontWeight: '600',
   },
   progressBarBg: {
     height: 8,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.borderMedium,
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -379,11 +394,16 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
   },
+  progressPercentage: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: 'right',
+  },
   subGoalsSection: {
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: Colors.borderLight,
   },
   subGoalsDropdownHeader: {
     flexDirection: 'row',
@@ -391,25 +411,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 4,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   subGoalsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: Colors.textPrimary,
     flex: 1,
-  },
-  dropdownArrow: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: 'bold',
   },
   subGoalsDropdownContent: {
     marginTop: 8,
     paddingTop: 8,
+    gap: 8,
   },
   subGoalItem: {
     flexDirection: 'row',
@@ -418,19 +430,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   subGoalCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Colors.borderDark,
     marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  checkboxIcon: {
-    fontSize: 18,
+  subGoalCheckboxCompleted: {
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
   },
   subGoalText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     flex: 1,
     lineHeight: 18,
   },
   completedSubGoalText: {
     textDecorationLine: 'line-through',
-    color: '#9CA3AF',
+    color: Colors.textTertiary,
   },
 });

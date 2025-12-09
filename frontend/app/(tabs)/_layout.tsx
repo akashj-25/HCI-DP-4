@@ -1,18 +1,23 @@
+// frontend/app/(tabs)/_layout.tsx
+// FIXED VERSION - Proper icons replacing emojis
+
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform, Text } from 'react-native';
+import { Platform } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { Colors, IconNames } from '../../constants/design';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#3B82F6',
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: Colors.neutral,
+        tabBarInactiveTintColor: Colors.textTertiary,
         tabBarStyle: {
           backgroundColor: '#fff',
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
+          borderTopColor: Colors.borderMedium,
           paddingBottom: Platform.OS === 'ios' ? 20 : 10,
           paddingTop: 10,
           height: Platform.OS === 'ios' ? 88 : 68,
@@ -26,28 +31,52 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🏠</Text>,
+          tabBarIcon: ({ color, focused }) => (
+            <Feather 
+              name={IconNames.home}
+              size={24} 
+              color={focused ? Colors.neutral : Colors.textTertiary}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="goals"
         options={{
           title: 'Goals',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>💰</Text>,
+          tabBarIcon: ({ color, focused }) => (
+            <Feather 
+              name={IconNames.goals}
+              size={24} 
+              color={focused ? Colors.neutral : Colors.textTertiary}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="timeline"
         options={{
           title: 'Timeline',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🕐</Text>,
+          tabBarIcon: ({ color, focused }) => (
+            <Feather 
+              name={IconNames.timeline}
+              size={24} 
+              color={focused ? Colors.neutral : Colors.textTertiary}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>👤</Text>,
+          tabBarIcon: ({ color, focused }) => (
+            <Feather 
+              name={IconNames.profile}
+              size={24} 
+              color={focused ? Colors.neutral : Colors.textTertiary}
+            />
+          ),
         }}
       />
       <Tabs.Screen

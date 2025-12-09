@@ -1,7 +1,29 @@
+// frontend/app/(tabs)/edit-event-modal.tsx
+// FIXED VERSION - H4 Compliant
+
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { 
+  KeyboardAvoidingView, 
+  Platform, 
+  ScrollView, 
+  StyleSheet, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  View 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import DatePicker from '../../components/DatePicker';
+import { 
+  Colors, 
+  Labels, 
+  DateConfig, 
+  NavigationPaths,
+  ImpactLevel,
+  ImpactLevelConfig
+} from '../../constants/design';
 
 interface TimelineEvent {
   id: number;
@@ -23,12 +45,25 @@ export default function EditEventModal() {
   const params = useLocalSearchParams();
   const existingEvent = params.eventData ? JSON.parse(params.eventData as string) : null;
 
+  // Convert storage date to display format
+  const displayDate = existingEvent?.date ? DateConfig.toDisplay(existingEvent.date) : '';
+
   const [description, setDescription] = useState(existingEvent?.description || '');
   const [amount, setAmount] = useState(Math.abs(existingEvent?.amount || 0).toString());
-  const [date, setDate] = useState(existingEvent?.date || '');
+  const [date, setDate] = useState(displayDate);
   const [category, setCategory] = useState(existingEvent?.category || '');
-  const [eventType, setEventType] = useState<'major' | 'medium' | 'small'>(existingEvent?.type || 'medium');
-  const [isPositive, setIsPositive] = useState((existingEvent?.amount || 0) >= 0);
+  
+  // Convert type to impact level
+  const getImpactLevel = (type: string): ImpactLevel => {
+    if (type === 'major') return 'high';
+    if (type === 'small') return 'low';
+    return 'medium';
+  };
+  
+  const [impactLevel, setImpactLevel] = useState<ImpactLevel>(
+    getImpactLevel(existingEvent?.type || 'medium')
+  );
+  const [isIncome, setIsIncome] = useState((existingEvent?.amount || 0) >= 0);
 
   const handleSubmit = () => {
     if (!description.trim() || !amount.trim() || !date.trim() || !category.trim()) {
@@ -42,39 +77,35 @@ export default function EditEventModal() {
       return;
     }
 
-    if (!isPositive) {
-      amountValue = -Math.abs(amountValue);
-    } else {
-      amountValue = Math.abs(amountValue);
-    }
+    amountValue = isIncome ? Math.abs(amountValue) : -Math.abs(amountValue);
 
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(date)) {
-      alert('Please enter date in YYYY-MM-DD format');
+    if (!DateConfig.validate(date)) {
+      alert(`Please enter date in ${DateConfig.placeholder} format`);
       return;
     }
+    const storageDate = DateConfig.toStorage(date);
 
-    const importance = eventType === 'major' ? 10 : eventType === 'medium' ? 5 : 1;
+    const importance = ImpactLevelConfig[impactLevel].importance;
 
     const updatedEvent: TimelineEvent = {
       ...existingEvent,
-      type: eventType,
+      type: impactLevel === 'high' ? 'major' : impactLevel === 'medium' ? 'medium' : 'small',
       amount: amountValue,
       description: description,
-      date: date,
+      date: storageDate,
       category: category.toLowerCase(),
       importance: importance,
     };
 
-    router.back();
-    
     if (global.updateEvent) {
       global.updateEvent(updatedEvent);
     }
+    router.push(NavigationPaths.timeline);
   };
 
   const handleCancel = () => {
-    router.back();
+    // router.back();
+    router.push(NavigationPaths.timeline);
   };
 
   return (
@@ -85,152 +116,165 @@ export default function EditEventModal() {
       >
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Edit Timeline Event</Text>
-            <TouchableOpacity onPress={handleCancel}>
-              <Text style={styles.cancelButton}>Cancel</Text>
-            </TouchableOpacity>
+            <View style={styles.headerLeft}>
+              <TouchableOpacity onPress={handleCancel} style={styles.backButton}>
+                <Text style={styles.backButtonText}>‹ Back</Text>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Edit Timeline Event</Text>
+            </View>
           </View>
 
           <View style={styles.form}>
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Description</Text>
+              <Text style={styles.label}>
+                {Labels.eventDescription}
+                <Text style={styles.required}> *</Text>
+              </Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter event description"
-                placeholderTextColor="#9CA3AF"
+                placeholder="e.g., Rent payment, Salary deposit"
+                placeholderTextColor={Colors.textTertiary}
                 value={description}
                 onChangeText={setDescription}
               />
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Amount</Text>
-              <View style={styles.amountContainer}>
-                <View style={styles.signButtonsContainer}>
-                  <TouchableOpacity 
-                    style={[
-                      styles.signButton,
-                      styles.positiveButton,
-                      isPositive && styles.signButtonActive
-                    ]}
-                    onPress={() => setIsPositive(true)}
-                  >
-                    <Text style={[
-                      styles.signButtonText,
-                      isPositive && styles.signButtonTextActive
-                    ]}>
-                      +
-                    </Text>
-                  </TouchableOpacity>
+              <Text style={styles.label}>
+                {Labels.transactionType}
+                <Text style={styles.required}> *</Text>
+              </Text>
+              <View style={styles.typeToggleContainer}>
+                <TouchableOpacity 
+                  style={[
+                    styles.typeToggleButton,
+                    isIncome && styles.typeToggleButtonActive,
+                    { backgroundColor: isIncome ? Colors.income + '20' : Colors.backgroundMedium }
+                  ]}
+                  onPress={() => setIsIncome(true)}
+                >
+                  <Feather 
+                    name="trending-up" 
+                    size={20} 
+                    color={isIncome ? Colors.income : Colors.textSecondary}
+                  />
+                  <Text style={[
+                    styles.typeToggleText,
+                    isIncome && { color: Colors.income, fontWeight: '600' }
+                  ]}>
+                    {Labels.transactionTypes.income}
+                  </Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={[
-                      styles.signButton,
-                      styles.negativeButton,
-                      !isPositive && styles.signButtonActive
-                    ]}
-                    onPress={() => setIsPositive(false)}
-                  >
-                    <Text style={[
-                      styles.signButtonText,
-                      !isPositive && styles.signButtonTextActive
-                    ]}>
-                      −
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity 
+                  style={[
+                    styles.typeToggleButton,
+                    !isIncome && styles.typeToggleButtonActive,
+                    { backgroundColor: !isIncome ? Colors.expense + '20' : Colors.backgroundMedium }
+                  ]}
+                  onPress={() => setIsIncome(false)}
+                >
+                  <Feather 
+                    name="trending-down" 
+                    size={20} 
+                    color={!isIncome ? Colors.expense : Colors.textSecondary}
+                  />
+                  <Text style={[
+                    styles.typeToggleText,
+                    !isIncome && { color: Colors.expense, fontWeight: '600' }
+                  ]}>
+                    {Labels.transactionTypes.expense}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.helperText}>
+                {isIncome ? Labels.transactionDescriptions.income : Labels.transactionDescriptions.expense}
+              </Text>
+            </View>
 
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>
+                {Labels.eventAmount}
+                <Text style={styles.required}> *</Text>
+              </Text>
+              <View style={styles.amountInputWrapper}>
+                <Text style={styles.currencySymbol}>$</Text>
                 <TextInput
                   style={[
                     styles.input,
                     styles.amountInput,
-                    isPositive ? styles.amountInputPositive : styles.amountInputNegative
+                    { 
+                      borderColor: isIncome ? Colors.income : Colors.expense,
+                      backgroundColor: isIncome ? Colors.income + '10' : Colors.expense + '10'
+                    }
                   ]}
                   placeholder="0.00"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={Colors.textTertiary}
                   value={amount}
                   onChangeText={setAmount}
                   keyboardType="decimal-pad"
                 />
               </View>
-              <Text style={styles.amountHint}>
-                {isPositive ? '💰 Income or positive transaction' : '💸 Expense or negative transaction'}
-              </Text>
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Date</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#9CA3AF"
+              <DatePicker
                 value={date}
-                onChangeText={setDate}
+                onChange={setDate}
+                label={`${Labels.eventDate} *`}
               />
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Category</Text>
+              <Text style={styles.label}>
+                {Labels.eventCategory}
+                <Text style={styles.required}> *</Text>
+              </Text>
               <TextInput
                 style={styles.input}
                 placeholder="e.g., housing, food, income"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.textTertiary}
                 value={category}
                 onChangeText={setCategory}
               />
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Event Size</Text>
-              <View style={styles.typeButtonsContainer}>
-                <TouchableOpacity 
-                  style={[
-                    styles.typeButton,
-                    eventType === 'major' && styles.typeButtonSelected,
-                    { backgroundColor: eventType === 'major' ? '#EF4444' : '#F3F4F6' }
-                  ]}
-                  onPress={() => setEventType('major')}
-                >
-                  <Text style={[
-                    styles.typeButtonText,
-                    eventType === 'major' && styles.typeButtonTextSelected
-                  ]}>
-                    Major
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[
-                    styles.typeButton,
-                    eventType === 'medium' && styles.typeButtonSelected,
-                    { backgroundColor: eventType === 'medium' ? '#F59E0B' : '#F3F4F6' }
-                  ]}
-                  onPress={() => setEventType('medium')}
-                >
-                  <Text style={[
-                    styles.typeButtonText,
-                    eventType === 'medium' && styles.typeButtonTextSelected
-                  ]}>
-                    Medium
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[
-                    styles.typeButton,
-                    eventType === 'small' && styles.typeButtonSelected,
-                    { backgroundColor: eventType === 'small' ? '#10B981' : '#F3F4F6' }
-                  ]}
-                  onPress={() => setEventType('small')}
-                >
-                  <Text style={[
-                    styles.typeButtonText,
-                    eventType === 'small' && styles.typeButtonTextSelected
-                  ]}>
-                    Small
-                  </Text>
-                </TouchableOpacity>
+              <Text style={styles.label}>
+                {Labels.impactLevel}
+                <Text style={styles.required}> *</Text>
+              </Text>
+              <View style={styles.impactButtonsContainer}>
+                {(['high', 'medium', 'low'] as ImpactLevel[]).map((level) => {
+                  const config = ImpactLevelConfig[level];
+                  const isSelected = impactLevel === level;
+                  
+                  return (
+                    <TouchableOpacity 
+                      key={level}
+                      style={[
+                        styles.impactButton,
+                        isSelected && styles.impactButtonSelected,
+                        { 
+                          backgroundColor: isSelected ? config.backgroundColor : Colors.backgroundMedium,
+                          borderColor: isSelected ? config.color : 'transparent'
+                        }
+                      ]}
+                      onPress={() => setImpactLevel(level)}
+                    >
+                      <Text style={[
+                        styles.impactButtonText,
+                        isSelected && { color: config.color, fontWeight: '600' }
+                      ]}>
+                        {config.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
+              <Text style={styles.helperText}>
+                {ImpactLevelConfig[impactLevel].description}
+              </Text>
             </View>
 
             <TouchableOpacity 
@@ -239,6 +283,10 @@ export default function EditEventModal() {
             >
               <Text style={styles.submitButtonText}>Update Event</Text>
             </TouchableOpacity>
+
+            <Text style={styles.footerNote}>
+              * Required fields
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -249,7 +297,7 @@ export default function EditEventModal() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.backgroundLight,
   },
   keyboardView: {
     flex: 1,
@@ -259,19 +307,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingVertical: 20,
+  },
+  headerLeft: {
+    gap: 12,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: Colors.neutral,
+    fontWeight: '600',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F2937',
-  },
-  cancelButton: {
-    fontSize: 16,
-    color: '#6B7280',
+    color: Colors.textPrimary,
   },
   form: {
     gap: 20,
@@ -282,98 +334,90 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: Colors.textPrimary,
+  },
+  required: {
+    color: Colors.error,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.cardBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.borderMedium,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#1F2937',
+    color: Colors.textPrimary,
   },
-  amountContainer: {
+  helperText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  typeToggleContainer: {
+    flexDirection: 'row',
     gap: 12,
   },
-  signButtonsContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  signButton: {
+  typeToggleButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  positiveButton: {
-    backgroundColor: '#D1FAE5',
+  typeToggleButtonActive: {
+    borderColor: Colors.textPrimary,
   },
-  negativeButton: {
-    backgroundColor: '#FEE2E2',
+  typeToggleText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
   },
-  signButtonActive: {
-    borderColor: '#1F2937',
+  amountInputWrapper: {
+    position: 'relative',
   },
-  signButtonText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#9CA3AF',
-  },
-  signButtonTextActive: {
-    color: '#1F2937',
+  currencySymbol: {
+    position: 'absolute',
+    left: 16,
+    top: 14,
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    zIndex: 1,
   },
   amountInput: {
-    fontSize: 18,
+    paddingLeft: 32,
     fontWeight: '600',
+    fontSize: 18,
   },
-  amountInputPositive: {
-    borderColor: '#10B981',
-    backgroundColor: '#F0FDF4',
-  },
-  amountInputNegative: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  amountHint: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
-    marginTop: -4,
-  },
-  typeButtonsContainer: {
+  impactButtonsContainer: {
     flexDirection: 'row',
     gap: 12,
   },
-  typeButton: {
+  impactButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
   },
-  typeButtonSelected: {
-    borderColor: '#1F2937',
+  impactButtonSelected: {
+    // Border color set dynamically
   },
-  typeButtonText: {
+  impactButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  typeButtonTextSelected: {
-    color: '#1F2937',
+    color: Colors.textSecondary,
   },
   submitButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: Colors.neutral,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 12,
-    shadowColor: '#3B82F6',
+    shadowColor: Colors.neutral,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -383,5 +427,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  footerNote: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: -8,
+    marginBottom: 20,
   },
 });
